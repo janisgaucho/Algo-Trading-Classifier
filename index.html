@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algo Trading Classifier</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📊 Algo Trading Classifier</h1>
+        <p>Transformez vos rapports HTML en tableau Excel formaté.</p>
+
+        <div class="upload-section">
+            <div class="input-group">
+                <label>1. Chargez le fichier Excel Modèle (Vierge)</label>
+                <input type="file" id="excelInput" accept=".xlsx">
+            </div>
+
+            <div class="input-group">
+                <label>2. Chargez le rapport HTML (MT4/MT5)</label>
+                <input type="file" id="htmlInput" accept=".html, .htm">
+            </div>
+
+            <button id="processBtn" onclick="processFiles()">Lancer l'analyse 🚀</button>
+        </div>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
