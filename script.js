@@ -30,10 +30,9 @@ function getInput(text, param) {
 
 async function processFiles() {
     const excelInput = document.getElementById('excelInput');
-    const htmlInput = document.getElementById('htmlInput'); // N'oublie pas le 'multiple' dans le HTML
+    const htmlInput = document.getElementById('htmlInput');
     const statusDiv = document.getElementById('status');
 
-    // Vérification : on a besoin d'au moins 1 Excel et au moins 1 HTML
     if (!excelInput.files[0] || htmlInput.files.length === 0) {
         statusDiv.innerHTML = "⚠️ Veuillez sélectionner le fichier Excel et au moins un rapport HTML.";
         statusDiv.className = "status error";
@@ -44,16 +43,15 @@ async function processFiles() {
     statusDiv.className = "status";
 
     try {
-        // --- 1. CHARGEMENT EXCEL (On le fait une seule fois au début) ---
+        // --- 1. PRÉPARATION ---
         const workbook = new ExcelJS.Workbook();
         const arrayBuffer = await readFileAsArrayBuffer(excelInput.files[0]);
         await workbook.xlsx.load(arrayBuffer);
         const worksheet = workbook.worksheets[0];
 
-        // --- 2. MAPPING DES COLONNES (On le fait une seule fois) ---
+        // Mapping des colonnes (Code habituel)
         const mapping = {};
         const headerRow = worksheet.getRow(LIGNE_TITRES);
-        
         headerRow.eachCell((cell, colNumber) => {
             if (cell.value) {
                 let cleanHeader = String(cell.value).toUpperCase().replace(/[\s_\-\/']/g, '');
@@ -61,42 +59,34 @@ async function processFiles() {
             }
         });
 
-        // Trouver la colonne de référence pour savoir où écrire
-        let colRef = 4;
+        let colRef = 4; // Par défaut
         for (const [key, val] of Object.entries(mapping)) {
-            if (key.includes("ACTIF") || key.includes("SYMBOL")) {
-                colRef = val;
-                break;
-            }
+            if (key.includes("ACTIF") || key.includes("SYMBOL")) { colRef = val; break; }
         }
 
-        // Trouver la première ligne vide DE DÉPART
         let currentRow = LIGNE_TITRES + 1;
         while (true) {
             const cell = worksheet.getCell(currentRow, colRef);
-            if ((cell.value !== null && cell.value !== "") || cell.isMerged) {
-                currentRow++;
-            } else {
-                break;
-            }
+            if ((cell.value !== null && cell.value !== "") || cell.isMerged) currentRow++;
+            else break;
         }
 
-        // --- 3. LA BOUCLE (On traite chaque fichier HTML) ---
-        const files = Array.from(htmlInput.files); // Convertit la liste en tableau
+        // Variable temporaire pour stocker les infos de la session avant sauvegarde
+        let sessionData = [];
+
+        // --- 2. BOUCLE DE TRAITEMENT (Remplissage) ---
+        const files = Array.from(htmlInput.files);
         
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            
-            // Mise à jour du statut pour l'utilisateur
             statusDiv.innerHTML = `⏳ Traitement du fichier ${i + 1} sur ${files.length} : ${file.name}...`;
 
-            // Lecture et Parsing du fichier HTML actuel
             const htmlText = await readFileAsText(file);
             const parser = new DOMParser();
             const doc = parser.parseFromString(htmlText, 'text/html');
             const textContent = doc.body.textContent;
 
-            // --- EXTRACTION DES DONNÉES (Ta logique existante) ---
+            // --- EXTRACTION (Ton code habituel) ---
             const expertName = getVal(doc, "Expert");
             const symbol = getVal(doc, "Symbol");
             const rawPeriod = getVal(doc, "Period");
@@ -111,7 +101,6 @@ async function processFiles() {
             const tp = getInput(textContent, "Take_Profit");
             const maxOpenPos = getInput(textContent, "Max_OpenPos");
 
-            // Drawdowns
             const maxDDStr = getVal(doc, "Equity Drawdown Maximal");
             let maxDDPct = 0.0;
             const maxDDMatch = maxDDStr.match(/\(([\d.]+)%\)/);
@@ -127,19 +116,14 @@ async function processFiles() {
             if (relDDPct === 0) relDDPct = maxDDPct;
 
             const maxLossNb = getVal(doc, "Maximum consecutive losses").split('(')[0].trim();
-            
-            // Dates
             const dateRegex = /\d{4}\.\d{2}\.\d{2}/g;
             const dates = rawPeriod.match(dateRegex) || [];
             const dStart = dates.length > 0 ? dates[0] : "";
             const dEnd = dates.length > 0 ? dates[dates.length - 1] : "";
             let duree = 0;
-            if (dStart && dEnd) {
-                duree = parseInt(dEnd.substring(0, 4)) - parseInt(dStart.substring(0, 4));
-            }
+            if (dStart && dEnd) duree = parseInt(dEnd.substring(0, 4)) - parseInt(dStart.substring(0, 4));
             const timeframe = rawPeriod.split('(')[0].trim();
 
-            // Calculs
             const gainsVal = (profit * 100) / initDep;
             const gainsDisplay = `${gainsVal.toFixed(2)}%`;
             const gainMensuelCash = profit / 60;
@@ -156,7 +140,6 @@ async function processFiles() {
             const profitFactor = getVal(doc, "Profit Factor");
             const sharpe = getVal(doc, "Sharpe Ratio");
 
-            // Objet DATA pour ce fichier
             const DATA = {
                 'NOMDELEA': expertName, 'NOM': expertName, 'EXPERT': expertName,
                 'ACTIF': symbol, 'INITIALBALANCE': initDep, 'INITIALDEPOSIT': initDep,
@@ -171,10 +154,9 @@ async function processFiles() {
                 'SLENPOINTS': sl, 'SLEN%': slPct, 'TPENPOINTS': tp, 'TPEN%': tpPct
             };
 
-            // --- ECRITURE DANS EXCEL ---
+            // Ecriture dans l'Excel en mémoire
             for (const [key, val] of Object.entries(DATA)) {
                 const keyClean = key.toUpperCase().replace(/[\s_\-\/']/g, '');
-                
                 let colIndex = mapping[keyClean];
                 if (!colIndex) {
                     for (const [header, idx] of Object.entries(mapping)) {
@@ -186,23 +168,48 @@ async function processFiles() {
                         }
                     }
                 }
-
-                if (colIndex) {
-                    writeAndMerge(worksheet, currentRow, colIndex, val);
-                }
+                if (colIndex) writeAndMerge(worksheet, currentRow, colIndex, val);
             }
-
-            // IMPORTANT : On passe à la ligne suivante pour le prochain fichier
+            
+            // On ajoute les données dans notre liste temporaire
+            sessionData.push(DATA);
             currentRow++;
         }
 
-        // --- 4. SAUVEGARDE FINALE (Une fois que tout est fini) ---
-        statusDiv.innerHTML = "💾 Génération du fichier Excel...";
+        // --- 3. GÉNÉRATION DU FICHIER FINAL ---
+        statusDiv.innerHTML = "💾 Génération du fichier final...";
         const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        saveAs(blob, "Resultats_Trading_Multi.xlsx");
+        
+        // On crée le BLOB final (C'est le fichier Excel REMPLI)
+        const finalBlob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const finalFileName = `Resultats_Complets_${Date.now()}.xlsx`;
 
-        statusDiv.innerHTML = `✅ Terminé ! ${files.length} rapports ajoutés.`;
+        // --- 4. UPLOAD VERS FIREBASE (Le fichier REMPLI) ---
+        let cloudLink = null;
+        if (window.uploadToFirebase) {
+            statusDiv.innerHTML = `☁️ Sauvegarde du fichier complet vers le Cloud...`;
+            try {
+                // On transforme le Blob en "Fichier" pour que Firebase comprenne
+                const fileToUpload = new File([finalBlob], finalFileName, { type: finalBlob.type });
+                
+                // UPLOAD !
+                cloudLink = await window.uploadToFirebase(fileToUpload);
+            } catch (e) {
+                console.error("Erreur Cloud", e);
+            }
+        }
+
+        // --- 5. SAUVEGARDE HISTORIQUE ---
+        // On met à jour chaque ligne de l'historique avec le LIEN DU FICHIER FINAL
+        sessionData.forEach(dataItem => {
+            dataItem.CLOUD_URL = cloudLink; // On attache le lien
+            saveToHistory(dataItem);
+        });
+
+        // --- 6. TÉLÉCHARGEMENT LOCAL ---
+        saveAs(finalBlob, finalFileName);
+
+        statusDiv.innerHTML = `✅ Terminé ! ${files.length} analyses sauvegardées.`;
         statusDiv.className = "status success";
 
     } catch (error) {
@@ -280,4 +287,121 @@ function readFileAsArrayBuffer(file) {
         reader.onerror = e => reject(e);
         reader.readAsArrayBuffer(file);
     });
+}
+
+// --- GESTION DE LA MÉMOIRE (LOCALSTORAGE) ---
+
+// 1. Sauvegarder
+function saveToHistory(dataObj) {
+    let history = JSON.parse(localStorage.getItem('tradingHistory')) || [];
+    
+    // On ajoute un Timestamp précis pour pouvoir extraire Date et Heure séparément
+    dataObj.TIMESTAMP = new Date().getTime(); 
+    
+    history.unshift(dataObj);
+    localStorage.setItem('tradingHistory', JSON.stringify(history));
+    
+    renderHistory();
+}
+
+// 2. Afficher (Avec les nouvelles colonnes)
+function renderHistory() {
+    let history = JSON.parse(localStorage.getItem('tradingHistory')) || [];
+    const tbody = document.getElementById('history-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = ''; 
+
+    history.forEach((item, index) => {
+        const dateObj = item.TIMESTAMP ? new Date(item.TIMESTAMP) : new Date();
+        const dateStr = dateObj.toLocaleDateString();
+        const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        // Couleur profit
+        let profitColor = 'black';
+        let profitVal = String(item.NETPROFIT || "0");
+        if(profitVal.includes('-')) profitColor = '#ff4d4d';
+        else if(parseFloat(profitVal) > 0) profitColor = '#00C897';
+
+        // --- LE BOUTON UNIQUE ---
+        let actionBtn = `<span style="color:#999; font-size:12px;">Non dispo</span>`;
+        
+        if (item.CLOUD_URL && item.CLOUD_URL.startsWith('http')) {
+            // C'est le bouton magique qui télécharge le VRAI fichier
+            actionBtn = `
+                <a href="${item.CLOUD_URL}" target="_blank" style="text-decoration:none;">
+                        <i class="fa-solid fa-download"></i> Télécharger le rapport
+                </a>`;
+        }
+        // ------------------------
+
+        let row = `
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding:10px;">${dateStr} <br> <small style="color:#888">${timeStr}</small></td>
+                <td style="padding:10px; font-weight:bold;">${item.ACTIF || item.SYMBOL || '-'}</td>
+                <td style="padding:10px; color: ${profitColor}; font-weight:bold;">${item.NETPROFIT}</td>
+                <td style="padding:10px; text-align:center;">
+                    ${actionBtn}
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+
+// 3. Effacer l'historique
+function effacerHistorique() {
+    if(confirm("Veux-tu vraiment tout effacer ?")) {
+        localStorage.removeItem('tradingHistory');
+        renderHistory();
+    }
+}
+
+// 4. Charger l'historique au démarrage de la page
+document.addEventListener('DOMContentLoaded', renderHistory);
+
+// 3. Fonction pour télécharger depuis l'historique
+async function downloadFromHistory(index) {
+    let history = JSON.parse(localStorage.getItem('tradingHistory')) || [];
+    const data = history[index];
+
+    if (!data) return alert("Erreur : Données introuvables.");
+
+    try {
+        // Création d'un nouveau classeur simple
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Rapport');
+
+        // On définit les colonnes basées sur les clés de tes données
+        const columns = [];
+        const values = [];
+
+        for (const [key, val] of Object.entries(data)) {
+            // On ignore le timestamp interne
+            if(key === 'TIMESTAMP' || key === 'DATE_ANALYSE') continue;
+            
+            columns.push({ header: key, key: key, width: 15 });
+            values.push(val);
+        }
+
+        worksheet.columns = columns;
+        
+        // Ajout de la ligne de données
+        worksheet.addRow(values);
+
+        // Style rapide (En-tête gras)
+        worksheet.getRow(1).font = { bold: true };
+
+        // Génération et téléchargement
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        
+        // Nom du fichier : Rapport_Symbol_Date.xlsx
+        const fileName = `Rapport_${data.ACTIF || 'Unknown'}_${new Date().getTime()}.xlsx`;
+        saveAs(blob, fileName);
+
+    } catch (e) {
+        console.error(e);
+        alert("Erreur lors de la génération du fichier : " + e.message);
+    }
 }

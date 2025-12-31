@@ -3,34 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Algo Trading Classifier</title>
+    <title>Dashboard - Algo Trading</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="apple-touch-icon" href="favicon.png">    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/e6a435a23d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
 
-    <img src="images/Logo-ATC-1.png" alt="Logo Algo Trading Classifier">
+    <div class="app-container">
+        
+        <nav class="sidebar">
+            <div class="logo-area">
+                <img src="images/Logo-ATC-White.png" alt="Logo Algo trading Classifier" class="logo">
+            </div>
+            
+            <a href="index.html" class="menu-item active">
+                <i class="fa-solid fa-house"></i> Dashboard
+            </a>
+            <a href="history.html" class="menu-item">
+                <i class="fa-solid fa-clock-rotate-left"></i> Historique
+            </a>
+            
+            <div class="menu-footer">
+                v1.1 - Private Access
+            </div>
+        </nav>
 
-    <div class="container">
-
-        <div class="upload-section">
-            <div class="input-group">
-                <label>1. Chargez le fichier Excel Modèle (Vierge)</label>
-                <input type="file" id="excelInput" accept=".xlsx">
+        <main class="main-content">
+            
+            <div class="header">
+                <div>
+                    <h1>Nouvelle Analyse</h1>
+                    <p style="margin-bottom: 0;">Fusionnez et analysez vos rapports de trading.</p>
+                </div>
             </div>
 
-            <div class="input-group">
-                <label>2. Chargez le rapport HTML (MT4/MT5)</label>
-                <input type="file" id="htmlInput" accept=".html, .htm" multiple>
+            <div class="card">
+                <h3><i class="fa-solid fa-folder-open"></i> Importation des fichiers</h3>
+                
+                <div class="input-group">
+                    <label>1. Template Excel (.xlsx)</label>
+                    <input type="file" id="excelInput" accept=".xlsx">
+                </div>
+                
+                <div class="input-group">
+                    <label>2. Rapports HTML (Multiples)</label>
+                    <input type="file" id="htmlInput" accept=".html,.htm" multiple>
+                </div>
+
+                <button onclick="processFiles()">
+                    <i class="fa-solid fa-rocket"></i> Lancer l'analyse
+                </button>
+
+                <div id="status" class="status"></div>
             </div>
 
-            <button id="processBtn" onclick="processFiles()">Lancer l'analyse 🚀</button>
-        </div>
+            <div style="margin-top: 20px; color: #888; font-size: 0.9em;">
+                <p><i class="fa-solid fa-circle-info"></i> Les fichiers générés seront automatiquement stockés dans votre historique et sur le Cloud.</p>
+            </div>
 
-        <div id="status" class="status"></div>
+        </main>
     </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSy...",  // <--- REMETS TA CLÉ ICI
+            authDomain: "algo-trading-classifier.firebaseapp.com",
+            projectId: "algo-trading-classifier",
+            storageBucket: "algo-trading-classifier.firebasestorage.app", // Vérifie ce nom
+            messagingSenderId: "835585851322",
+            appId: "1:835585851322:web:99c0c03ee1939b3b186783"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const storage = getStorage(app);
+
+        // Fonction globale d'upload
+        window.uploadToFirebase = async (file) => {
+            try {
+                const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, "_");
+                const path = `uploads/${Date.now()}_${cleanName}`;
+                const storageRef = ref(storage, path);
+                const snapshot = await uploadBytes(storageRef, file);
+                return await getDownloadURL(snapshot.ref);
+            } catch (error) {
+                console.error("Erreur Upload:", error);
+                throw error; // On renvoie l'erreur pour que le script principal la voie
+            }
+        };
+    </script>
 
     <script src="script.js"></script>
 </body>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historique - Algo Trading</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">    
+    <script src="https://kit.fontawesome.com/e6a435a23d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <nav class="sidebar">
+            <div class="logo-area">
+                <img src="images/Logo-ATC-White.png" alt="Logo Algo trading Classifier" class="logo">
+            </div>
+            
+            <a href="index.html" class="menu-item">
+                <i class="fa-solid fa-house"></i> Dashboard
+            </a>
+            <a href="history.html" class="menu-item active">
+                <i class="fa-solid fa-clock-rotate-left"></i> Historique
+            </a>
+            
+            <div class="menu-footer">
+                v1.1 - Private Access
+            </div>
+        </nav>
+
+        <main class="main-content">
+            
+            <div class="header">
+                <h1>Historique des rapports</h1>
+                <button class="danger" onclick="effacerHistorique()" style="width: auto; padding: 8px 15px; font-size: 14px;">
+                    <i class="fa-solid fa-trash"></i> Tout effacer
+                </button>
+            </div>
+
+            <div class="card" style="padding: 0; overflow: hidden;">
+                <table style="margin: 0;">
+                    <thead>
+                        <tr style="background-color: #f8f9fa;">
+                            <th style="padding-left: 25px;">Date</th>
+                            <th>Symbol</th>
+                            <th>Profit</th>
+                            <th style="text-align: center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body">
+                        </tbody>
+                </table>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
