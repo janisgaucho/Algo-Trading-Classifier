@@ -4,15 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Algo Trading Classifier</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">    <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
 
+    <img src="images/Logo-ATC-1.png" alt="Logo Algo Trading Classifier">
+
     <div class="container">
-        <h1>📊 Algo Trading Classifier</h1>
-        <p>Transformez vos rapports HTML en tableau Excel formaté.</p>
 
         <div class="upload-section">
             <div class="input-group">
@@ -22,7 +23,7 @@
 
             <div class="input-group">
                 <label>2. Chargez le rapport HTML (MT4/MT5)</label>
-                <input type="file" id="htmlInput" accept=".html, .htm">
+                <input type="file" id="htmlInput" accept=".html, .htm" multiple>
             </div>
 
             <button id="processBtn" onclick="processFiles()">Lancer l'analyse 🚀</button>

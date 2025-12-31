@@ -6,6 +6,8 @@ body {
     align-items: center;
     height: 100vh;
     margin: 0;
+    flex-direction: column;
+    gap: 64px;
 }
 
 .container {
@@ -57,3 +59,7 @@ button:hover { background-color: #0056b3; }
 .status { margin-top: 1.5rem; font-size: 0.9rem; min-height: 20px; }
 .success { color: #28a745; font-weight: bold; }
 .error { color: #dc3545; font-weight: bold; }
+
+.upload-section {
+    margin-top: 1.5em;
+}
