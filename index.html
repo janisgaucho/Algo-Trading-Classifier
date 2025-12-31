@@ -34,40 +34,70 @@
             </div>
         </nav>
 
-        <main class="main-content">
-            
-            <div class="header">
-                <div>
-                    <h1>Nouvelle Analyse</h1>
-                    <p style="margin-bottom: 0;">Fusionnez et analysez vos rapports de trading.</p>
-                </div>
+<main class="main-content">
+    
+    <div class="hero-header">
+        <h1>Transformez vos rapports en Alpha.</h1>
+        <p>L'outil ultime pour fusionner, analyser et classifier vos algorithmes de trading MT4 & MT5 en quelques secondes.</p>
+    </div>
+
+    <div class="stepper">
+        <div class="step">
+            <div class="step-icon"><i class="fa-solid fa-file-excel"></i></div>
+            <div class="step-text">
+                <h4>1. Template</h4>
+                <p>Chargez votre tableau</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-icon"><i class="fa-brands fa-html5"></i></div>
+            <div class="step-text">
+                <h4>2. Rapports</h4>
+                <p>Importez vos backtests</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-icon"><i class="fa-solid fa-bolt"></i></div>
+            <div class="step-text">
+                <h4>3. Analyse</h4>
+                <p>Obtenez votre tableau complété</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="background: transparent; box-shadow: none; padding: 0;">
+        
+        <div class="upload-grid">
+            <div class="dropzone">
+                <i class="fa-solid fa-file-excel" style="color: #107c41;"></i>
+                <h3>Fichier Template</h3>
+                <p>Format .xlsx uniquement</p>
+                <input type="file" id="excelInput" accept=".xlsx" onchange="updateFileName(this)">
+                <div id="excelName" style="margin-top:10px; font-weight:bold; color:#3699ff; font-size:12px;"></div>
             </div>
 
-            <div class="card">
-                <h3><i class="fa-solid fa-folder-open"></i> Importation des fichiers</h3>
-                
-                <div class="input-group">
-                    <label>1. Template Excel (.xlsx)</label>
-                    <input type="file" id="excelInput" accept=".xlsx">
-                </div>
-                
-                <div class="input-group">
-                    <label>2. Rapports HTML (Multiples)</label>
-                    <input type="file" id="htmlInput" accept=".html,.htm" multiple>
-                </div>
-
-                <button onclick="processFiles()">
-                    <i class="fa-solid fa-rocket"></i> Lancer l'analyse
-                </button>
-
-                <div id="status" class="status"></div>
+            <div class="dropzone">
+                <i class="fa-solid fa-code" style="color: #e34c26;"></i>
+                <h3>Rapports Trading</h3>
+                <p>Sélectionnez vos fichiers .html</p>
+                <input type="file" id="htmlInput" accept=".html,.htm" multiple onchange="updateFileName(this)">
+                <div id="htmlName" style="margin-top:10px; font-weight:bold; color:#3699ff; font-size:12px;"></div>
             </div>
+        </div>
 
-            <div style="margin-top: 20px; color: #888; font-size: 0.9em;">
-                <p><i class="fa-solid fa-circle-info"></i> Les fichiers générés seront automatiquement stockés dans votre historique et sur le Cloud.</p>
-            </div>
+        <button onclick="processFiles()" style="height: 60px; font-size: 18px; box-shadow: 0 10px 20px rgba(54, 153, 255, 0.2);">
+            <i class="fa-solid fa-rocket" style="margin-right: 10px;"></i> Lancer l'analyse maintenant
+        </button>
+        
+        <div class="demo-link">
+            Pas de fichiers sous la main ? <a href="Report-Demo-Algo-Trading-Classifier.zip" download>Télécharger un kit de démo</a>
+        </div>
 
-        </main>
+        <div id="status" class="status"></div>
+    </div>
+
+</main>
+
     </div>
 
     <script type="module">

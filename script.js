@@ -405,3 +405,17 @@ async function downloadFromHistory(index) {
         alert("Erreur lors de la génération du fichier : " + e.message);
     }
 }
+
+// Fonction cosmétique pour afficher le nom des fichiers sélectionnés dans les Dropzones
+function updateFileName(input) {
+    const nameDisplay = document.getElementById(input.id === 'excelInput' ? 'excelName' : 'htmlName');
+    if (input.files.length > 0) {
+        if (input.files.length === 1) {
+            nameDisplay.textContent = "✅ " + input.files[0].name;
+        } else {
+            nameDisplay.textContent = "✅ " + input.files.length + " fichiers sélectionnés";
+        }
+    } else {
+        nameDisplay.textContent = "";
+    }
+}
