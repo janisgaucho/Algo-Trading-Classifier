@@ -13,6 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
+
 <body>
 
     <div class="app-container">
@@ -44,23 +45,37 @@
             </div>
 
             <div class="card" style="padding: 0; overflow: hidden;">
-                <table style="margin: 0;">
-                    <thead>
-                        <tr style="background-color: #f8f9fa;">
-                            <th style="padding-left: 25px;">Date</th>
-                            <th>Symbol</th>
-                            <th>Profit</th>
-                            <th style="text-align: center;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-body">
-                        </tbody>
-                </table>
-            </div>
+    <table style="width: 100%; border-collapse: collapse; margin: 0;">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Actif</th>
+                <th>Profit</th>
+                <th>Profit Factor</th>
+                <th>Détails</th>
+            </tr>
+        </thead>
+        <tbody id="history-body">
+            </tbody>
+    </table>
+</div>
 
         </main>
     </div>
 
+    <div id="aiModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-robot" style="color: #8A2BE2;"></i> Analyse Gemini</h2>
+                <span class="close-btn" onclick="closeAIModal()">&times;</span>
+            </div>
+            <div id="aiModalBody" class="modal-body">
+                <div class="loader"></div> Analyse en cours...
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
+
 </html>

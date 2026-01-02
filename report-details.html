@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Détails du Rapport - Algo Trading</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">    
+    <script src="https://kit.fontawesome.com/e6a435a23d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        
+        <nav class="sidebar">
+            <div class="logo-area">
+                <img src="images/Logo-ATC-White.png" alt="Logo Algo trading Classifier" class="logo">
+            </div>
+            
+            <a href="index.html" class="menu-item">
+                <i class="fa-solid fa-house"></i> Dashboard
+            </a>
+            <a href="history.html" class="menu-item active">
+                <i class="fa-solid fa-clock-rotate-left"></i> Historique
+            </a>
+            
+            <div class="menu-footer">
+                v1.1 - Private Access
+            </div>
+        </nav>
+
+        <main class="main-content">
+            
+            <div class="header-main" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px;">
+                <a href="history.html" style="text-decoration: none; color: #8A2BE2; font-weight: bold; font-size: 14px;">
+                    <i class="fa-solid fa-chevron-left"></i> RETOUR A L'HISTORIQUE
+                </a>
+                <h1 id="report-title">Détails du Backtest</h1>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <div class="card">
+                    <p style="font-size: 12px; color: #888; margin: 0; text-transform: uppercase;">Profit Net</p>
+                    <h2 id="val-profit" style="margin: 10px 0 0 0;">-</h2>
+                </div>
+                <div class="card">
+                    <p style="font-size: 12px; color: #888; margin: 0; text-transform: uppercase;">Profit Factor</p>
+                    <h2 id="val-pf" style="margin: 10px 0 0 0;">-</h2>
+                </div>
+                <div class="card">
+                    <p style="font-size: 12px; color: #888; margin: 0; text-transform: uppercase;">Drawdown Max</p>
+                    <h2 id="val-dd" style="margin: 10px 0 0 0;">-</h2>
+                </div>
+                <div class="card">
+                    <p style="font-size: 12px; color: #888; margin: 0; text-transform: uppercase;">Win Rate</p>
+                    <h2 id="val-win" style="margin: 10px 0 0 0;">-</h2>
+                </div>
+            </div>
+
+            <div id="download-zone"></div>
+
+            <div class="card" style="margin-top: 25px; border-left: 5px solid #8A2BE2;">
+                <h3 style="display: flex; align-items: center; gap: 10px; margin-top: 0;">
+                    <i class="fa-solid fa-robot" style="color: #8A2BE2;"></i> 
+                    Analyse IA
+                </h3>
+                <div id="ai-response" style="line-height: 1.7; margin-top: 15px; color: #444;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> L'IA analyse vos résultats...
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('id');
+            const history = JSON.parse(localStorage.getItem('tradingHistory')) || [];
+            const data = history[id];
+
+            if (data) {
+                document.getElementById('report-title').innerText = `Rapport : ${data.ACTIF || 'Stratégie'}`;
+                document.getElementById('val-profit').innerText = data.NETPROFIT || '0';
+                document.getElementById('val-pf').innerText = data.FACTOR || '0.00';
+                document.getElementById('val-dd').innerText = data.MAXDD || '0%';
+                document.getElementById('val-win').innerText = data.WINRATE || '0%';
+
+                if (data.CLOUD_URL) {
+                    document.getElementById('download-zone').innerHTML = `
+                        <button class="btn" onclick="window.open('${data.CLOUD_URL}', '_blank')">
+                            <i class="fa-solid fa-download"></i> Télécharger le tableau
+                        </button>`;
+                }
+                
+                if (typeof callGeminiAPI_Details === "function") {
+                    callGeminiAPI_Details(data, document.getElementById('ai-response'));
+                }
+            } else {
+                window.location.href = 'history.html';
+            }
+        });
+    </script>
+</body>
+</html>

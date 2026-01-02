@@ -1,16 +1,15 @@
-const LIGNE_TITRES = 5;
+// --- CONFIGURATION ---
+const LIGNE_TITRES = 5; // Titres sur la ligne 5
 
-// --- FONCTIONS UTILITAIRES --- //
+// --- FONCTIONS UTILITAIRES ---
 
 function cleanNum(str) {
     if (!str) return 0.0;
-    // Enlève tout sauf chiffres, point et moins
     let cleaned = str.replace(/[^\d.-]/g, '');
     return parseFloat(cleaned) || 0.0;
 }
 
 function getVal(doc, label) {
-    // Cherche un <td> qui contient le label
     const tds = Array.from(doc.querySelectorAll('td'));
     const target = tds.find(td => td.textContent.toLowerCase().includes(label.toLowerCase()));
     if (target && target.nextElementSibling) {
@@ -20,13 +19,28 @@ function getVal(doc, label) {
 }
 
 function getInput(text, param) {
-    // Regex équivalent au python
     const regex = new RegExp(`${param}\\s*=\\s*([\\d.]+)`, 'i');
     const match = text.match(regex);
     return match ? parseFloat(match[1]) : 0.0;
 }
 
-// --- LOGIQUE PRINCIPALE --- //
+// --- LE "NETTOYEUR" (Crucial pour la fusion) ---
+// Transforme n'importe quelle cellule (Texte riche, Nombre, Objet) en texte simple propre
+function getCleanValue(cell) {
+    if (!cell || cell.value === null || cell.value === undefined) return "";
+    
+    // Si c'est un objet (Rich Text), on extrait juste le texte
+    if (typeof cell.value === 'object') {
+        if (cell.value.text) return String(cell.value.text);
+        if (cell.value.richText) return cell.value.richText.map(t => t.text).join('');
+        if (cell.value.result) return String(cell.value.result); // Formule
+    }
+    
+    // Sinon c'est une valeur simple
+    return String(cell.value);
+}
+
+// --- LOGIQUE PRINCIPALE ---
 
 async function processFiles() {
     const excelInput = document.getElementById('excelInput');
@@ -43,23 +57,22 @@ async function processFiles() {
     statusDiv.className = "status";
 
     try {
-        // --- 1. PRÉPARATION ---
         const workbook = new ExcelJS.Workbook();
         const arrayBuffer = await readFileAsArrayBuffer(excelInput.files[0]);
         await workbook.xlsx.load(arrayBuffer);
         const worksheet = workbook.worksheets[0];
 
-        // Mapping des colonnes (Code habituel)
+        // 1. MAPPING DES COLONNES (Ligne 5)
         const mapping = {};
         const headerRow = worksheet.getRow(LIGNE_TITRES);
+        
         headerRow.eachCell((cell, colNumber) => {
-            if (cell.value) {
-                let cleanHeader = String(cell.value).toUpperCase().replace(/[\s_\-\/']/g, '');
-                mapping[cleanHeader] = colNumber;
-            }
+            const val = getCleanValue(cell).toUpperCase().replace(/[\s_\-\/']/g, '');
+            if (val) mapping[val] = colNumber;
         });
 
-        let colRef = 4; // Par défaut
+        // 2. TROUVER OÙ ÉCRIRE (Première ligne vide après Ligne 5)
+        let colRef = 4; // Colonne par défaut
         for (const [key, val] of Object.entries(mapping)) {
             if (key.includes("ACTIF") || key.includes("SYMBOL")) { colRef = val; break; }
         }
@@ -67,32 +80,35 @@ async function processFiles() {
         let currentRow = LIGNE_TITRES + 1;
         while (true) {
             const cell = worksheet.getCell(currentRow, colRef);
-            if ((cell.value !== null && cell.value !== "") || cell.isMerged) currentRow++;
-            else break;
+            // On continue tant qu'il y a quelque chose
+            if (getCleanValue(cell) !== "" || cell.isMerged) {
+                currentRow++;
+            } else {
+                break;
+            }
         }
-
-        // Variable temporaire pour stocker les infos de la session avant sauvegarde
+        
+        const startWritingRow = currentRow;
         let sessionData = [];
 
-        // --- 2. BOUCLE DE TRAITEMENT (Remplissage) ---
+        // 3. ÉCRITURE DES DONNÉES (Sans fusionner pour l'instant)
         const files = Array.from(htmlInput.files);
         
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            statusDiv.innerHTML = `⏳ Traitement du fichier ${i + 1} sur ${files.length} : ${file.name}...`;
+            statusDiv.innerHTML = `⏳ Traitement ${i + 1}/${files.length} : ${file.name}...`;
 
             const htmlText = await readFileAsText(file);
             const parser = new DOMParser();
             const doc = parser.parseFromString(htmlText, 'text/html');
             const textContent = doc.body.textContent;
 
-            // --- EXTRACTION (Ton code habituel) ---
+            // -- Extraction --
             const expertName = getVal(doc, "Expert");
             const symbol = getVal(doc, "Symbol");
             const rawPeriod = getVal(doc, "Period");
             const trades = cleanNum(getVal(doc, "Total Trades"));
             const profit = cleanNum(getVal(doc, "Total Net Profit"));
-            
             let initDep = cleanNum(getVal(doc, "Initial Deposit"));
             if (initDep === 0) initDep = 100000.0;
 
@@ -126,7 +142,7 @@ async function processFiles() {
 
             const gainsVal = (profit * 100) / initDep;
             const gainsDisplay = `${gainsVal.toFixed(2)}%`;
-            const gainMensuelCash = profit / 60;
+            const gainMensuelCash = profit / 60; 
             const moyMensuelPct = parseFloat(((gainMensuelCash / initDep) * 100).toFixed(2));
             let retDD = 0;
             if (relDDPct !== 0) retDD = parseFloat((moyMensuelPct / relDDPct).toFixed(2));
@@ -154,62 +170,68 @@ async function processFiles() {
                 'SLENPOINTS': sl, 'SLEN%': slPct, 'TPENPOINTS': tp, 'TPEN%': tpPct
             };
 
-            // Ecriture dans l'Excel en mémoire
+            // Écriture brute
             for (const [key, val] of Object.entries(DATA)) {
                 const keyClean = key.toUpperCase().replace(/[\s_\-\/']/g, '');
                 let colIndex = mapping[keyClean];
+                
                 if (!colIndex) {
                     for (const [header, idx] of Object.entries(mapping)) {
                         if (header.includes(keyClean) || keyClean.includes(header)) {
-                            if (keyClean.includes("POINTS") && !header.includes("POINTS")) continue;
-                            if (keyClean.includes("%") && !header.includes("%")) continue;
-                            colIndex = idx;
-                            break;
+                             if (keyClean.includes("POINTS") && !header.includes("POINTS")) continue;
+                             if (keyClean.includes("%") && !header.includes("%")) continue;
+                             colIndex = idx; break;
                         }
                     }
                 }
-                if (colIndex) writeAndMerge(worksheet, currentRow, colIndex, val);
+                if (colIndex) {
+                    const cell = worksheet.getCell(currentRow, colIndex);
+                    cell.value = val; // On écrit la valeur (texte ou nombre)
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                }
             }
             
-            // On ajoute les données dans notre liste temporaire
             sessionData.push(DATA);
-            currentRow++;
+            currentRow++; 
         }
 
-        // --- 3. GÉNÉRATION DU FICHIER FINAL ---
-        statusDiv.innerHTML = "💾 Génération du fichier final...";
+        // 4. FUSION FINALE
+statusDiv.innerHTML = "🔄 Fusion des cellules identiques...";
+const endWritingRow = currentRow - 1;
+
+// On s'assure qu'on ne fusionne pas les titres (Ligne 5)
+const debutFusion = LIGNE_TITRES + 1; 
+
+if (endWritingRow > debutFusion) {
+    // On boucle sur toutes les colonnes détectées dans le mapping
+    Object.values(mapping).forEach(colIndex => {
+        if (colIndex) {
+            fusionnerColonne(worksheet, colIndex, debutFusion, endWritingRow);
+        }
+    });
+}
+
+        // 5. SAUVEGARDE
+        statusDiv.innerHTML = "💾 Génération...";
         const buffer = await workbook.xlsx.writeBuffer();
-        
-        // On crée le BLOB final (C'est le fichier Excel REMPLI)
         const finalBlob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
         const finalFileName = `Resultats_Complets_${Date.now()}.xlsx`;
 
-        // --- 4. UPLOAD VERS FIREBASE (Le fichier REMPLI) ---
         let cloudLink = null;
         if (window.uploadToFirebase) {
-            statusDiv.innerHTML = `☁️ Sauvegarde du fichier complet vers le Cloud...`;
             try {
-                // On transforme le Blob en "Fichier" pour que Firebase comprenne
                 const fileToUpload = new File([finalBlob], finalFileName, { type: finalBlob.type });
-                
-                // UPLOAD !
                 cloudLink = await window.uploadToFirebase(fileToUpload);
-            } catch (e) {
-                console.error("Erreur Cloud", e);
-            }
+            } catch (e) { console.error("Erreur Cloud", e); }
         }
 
-        // --- 5. SAUVEGARDE HISTORIQUE ---
-        // On met à jour chaque ligne de l'historique avec le LIEN DU FICHIER FINAL
         sessionData.forEach(dataItem => {
-            dataItem.CLOUD_URL = cloudLink; // On attache le lien
+            dataItem.CLOUD_URL = cloudLink;
             saveToHistory(dataItem);
         });
 
-        // --- 6. TÉLÉCHARGEMENT LOCAL ---
         saveAs(finalBlob, finalFileName);
-
-        statusDiv.innerHTML = `✅ Terminé ! ${files.length} analyses sauvegardées.`;
+        statusDiv.innerHTML = `✅ Terminé ! ${files.length} fichiers traités.`;
         statusDiv.className = "status success";
 
     } catch (error) {
@@ -219,64 +241,44 @@ async function processFiles() {
     }
 }
 
-// --- FONCTION DE FUSION (VERSION JS) ---
-function writeAndMerge(ws, row, col, val) {
-    const cell = ws.getCell(row, col);
-    cell.value = val;
+// FONCTION DE FUSION QUI MARCHE (Compare des Strings propres)
+function fusionnerColonne(ws, colIndex, startRow, endRow) {
+    let groupeDebut = startRow;
 
-    // Centrage par défaut
-    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    for (let r = startRow + 1; r <= endRow + 1; r++) {
+        // On récupère les valeurs en texte brut pour la comparaison
+        let valRef = getCleanValue(ws.getCell(groupeDebut, colIndex)).trim();
+        let valCurr = (r <= endRow) ? getCleanValue(ws.getCell(r, colIndex)).trim() : "###_FIN_###";
 
-    const rowAbove = row - 1;
-    if (rowAbove <= LIGNE_TITRES) return;
-
-    const cellAbove = ws.getCell(rowAbove, col);
-    
-    // Comparaison (On convertit en string pour comparer)
-    // On doit récupérer la valeur "maître" si c'est fusionné
-    let valAbove = cellAbove.value;
-    if (cellAbove.isMerged && cellAbove.master) {
-        valAbove = cellAbove.master.value;
-    }
-
-    // Fonction de comparaison souple
-    const isSame = (v1, v2) => {
-        if (v1 == v2) return true; // Egalité simple (inclut 100 == "100")
-        try {
-            // Comparaison numérique
-            const n1 = parseFloat(String(v1).replace(/[\s,]/g, ''));
-            const n2 = parseFloat(String(v2).replace(/[\s,]/g, ''));
-            if (!isNaN(n1) && !isNaN(n2) && Math.abs(n1 - n2) < 0.0001) return true;
-        } catch(e) {}
-        return false;
-    };
-
-    if (isSame(val, valAbove)) {
-        // Logique de fusion ExcelJS
-        let startRow = rowAbove;
-        
-        // Si celle du dessus est déjà fusionnée, on récupère le début de sa fusion
-        if (cellAbove.isMerged) {
-            // master renvoie la cellule en haut à gauche de la fusion
-            startRow = parseInt(cellAbove.master.row); 
-        }
-
-        // On fusionne du début du bloc précédent jusqu'à la ligne actuelle
-        try {
-            ws.mergeCells(startRow, col, row, col);
-        } catch (e) {
-            console.log("Erreur fusion, on continue...");
+        // Si la valeur change, on fusionne le bloc précédent
+        if (valRef !== valCurr) {
+            // On ne fusionne que s'il y a au moins 2 lignes identiques
+            if (r - 1 > groupeDebut) {
+                try {
+                    ws.mergeCells(groupeDebut, colIndex, r - 1, colIndex);
+                    
+                    // Style pour centrer le texte dans la cellule fusionnée
+                    ws.getCell(groupeDebut, colIndex).alignment = { 
+                        vertical: 'middle', 
+                        horizontal: 'center',
+                        wrapText: true 
+                    };
+                } catch (e) {
+                    console.error(`Erreur fusion Col:${colIndex} Lignes:${groupeDebut}-${r-1}`, e);
+                }
+            }
+            groupeDebut = r;
         }
     }
 }
 
-// Helpers pour lire les fichiers
+// --- LECTURE FICHIERS ---
 function readFileAsText(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = e => resolve(e.target.result);
         reader.onerror = e => reject(e);
-        reader.readAsText(file, "UTF-16"); // Essai UTF-16 d'abord (MT4/5)
+        reader.readAsText(file, "UTF-16");
     });
 }
 
@@ -289,133 +291,165 @@ function readFileAsArrayBuffer(file) {
     });
 }
 
-// --- GESTION DE LA MÉMOIRE (LOCALSTORAGE) ---
+// --- HISTORIQUE & INTERFACE ---
 
-// 1. Sauvegarder
 function saveToHistory(dataObj) {
     let history = JSON.parse(localStorage.getItem('tradingHistory')) || [];
-    
-    // On ajoute un Timestamp précis pour pouvoir extraire Date et Heure séparément
     dataObj.TIMESTAMP = new Date().getTime(); 
-    
     history.unshift(dataObj);
     localStorage.setItem('tradingHistory', JSON.stringify(history));
-    
     renderHistory();
 }
 
-// 2. Afficher (Avec les nouvelles colonnes)
 function renderHistory() {
     let history = JSON.parse(localStorage.getItem('tradingHistory')) || [];
     const tbody = document.getElementById('history-body');
     if (!tbody) return;
-
     tbody.innerHTML = ''; 
 
     history.forEach((item, index) => {
         const dateObj = item.TIMESTAMP ? new Date(item.TIMESTAMP) : new Date();
-        const dateStr = dateObj.toLocaleDateString();
-        const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
-        // Couleur profit
-        let profitColor = 'black';
-        let profitVal = String(item.NETPROFIT || "0");
-        if(profitVal.includes('-')) profitColor = '#ff4d4d';
-        else if(parseFloat(profitVal) > 0) profitColor = '#00C897';
+        // --- MODIFICATION ICI ---
+        const dateStr = dateObj.toLocaleDateString(); // Ex: 25/10/2023
+        const hourStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); // Ex: 14:30
+        // -------------------------
 
-        // --- LE BOUTON UNIQUE ---
-        let actionBtn = `<span style="color:#999; font-size:12px;">Non dispo</span>`;
-        
-        if (item.CLOUD_URL && item.CLOUD_URL.startsWith('http')) {
-            // C'est le bouton magique qui télécharge le VRAI fichier
-            actionBtn = `
-                <a href="${item.CLOUD_URL}" target="_blank" style="text-decoration:none;">
-                        <i class="fa-solid fa-download"></i> Télécharger le rapport
-                </a>`;
-        }
-        // ------------------------
+        // Couleur dynamique du profit
+        let profitColor = String(item.NETPROFIT).includes('-') ? '#ff4d4d' : '#00C897';
+        // Formatage du Profit Factor
+        let pfValue = item.FACTOR || '0.00';
 
         let row = `
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding:10px;">${dateStr} <br> <small style="color:#888">${timeStr}</small></td>
-                <td style="padding:10px; font-weight:bold;">${item.ACTIF || item.SYMBOL || '-'}</td>
-                <td style="padding:10px; color: ${profitColor}; font-weight:bold;">${item.NETPROFIT}</td>
-                <td style="padding:10px; text-align:center;">
-                    ${actionBtn}
+            <tr onclick="window.location.href='report-details.html?id=${index}'" 
+                style="border-bottom: 1px solid #eee; cursor: pointer; transition: 0.2s;"
+                onmouseover="this.style.backgroundColor='#f4f7f9'" 
+                onmouseout="this.style.backgroundColor='transparent'">
+                <td style="padding:15px; line-height: 1.4;">
+                    ${dateStr}<br>
+                    <small style="color: #888; font-weight: 400;">${hourStr}</small>
                 </td>
-            </tr>
-        `;
+                <td style="padding:15px; font-weight:600;">${item.ACTIF || 'N/A'}</td>
+                <td style="padding:15px; color: ${profitColor}; font-weight:bold;">${item.NETPROFIT}</td>
+                <td style="padding:15px; font-weight:500;">${pfValue}</td>
+                <td style="padding:15px; text-align:right; color: #8A2BE2;">
+                    <i class="fa-solid fa-arrow-right-long"></i>
+                </td>
+            </tr>`;
         tbody.innerHTML += row;
     });
 }
 
-// 3. Effacer l'historique
 function effacerHistorique() {
     if(confirm("Veux-tu vraiment tout effacer ?")) {
         localStorage.removeItem('tradingHistory');
         renderHistory();
     }
 }
-
-// 4. Charger l'historique au démarrage de la page
 document.addEventListener('DOMContentLoaded', renderHistory);
-
-// 3. Fonction pour télécharger depuis l'historique
-async function downloadFromHistory(index) {
-    let history = JSON.parse(localStorage.getItem('tradingHistory')) || [];
-    const data = history[index];
-
-    if (!data) return alert("Erreur : Données introuvables.");
-
-    try {
-        // Création d'un nouveau classeur simple
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Rapport');
-
-        // On définit les colonnes basées sur les clés de tes données
-        const columns = [];
-        const values = [];
-
-        for (const [key, val] of Object.entries(data)) {
-            // On ignore le timestamp interne
-            if(key === 'TIMESTAMP' || key === 'DATE_ANALYSE') continue;
-            
-            columns.push({ header: key, key: key, width: 15 });
-            values.push(val);
-        }
-
-        worksheet.columns = columns;
-        
-        // Ajout de la ligne de données
-        worksheet.addRow(values);
-
-        // Style rapide (En-tête gras)
-        worksheet.getRow(1).font = { bold: true };
-
-        // Génération et téléchargement
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        
-        // Nom du fichier : Rapport_Symbol_Date.xlsx
-        const fileName = `Rapport_${data.ACTIF || 'Unknown'}_${new Date().getTime()}.xlsx`;
-        saveAs(blob, fileName);
-
-    } catch (e) {
-        console.error(e);
-        alert("Erreur lors de la génération du fichier : " + e.message);
-    }
-}
-
-// Fonction cosmétique pour afficher le nom des fichiers sélectionnés dans les Dropzones
 function updateFileName(input) {
     const nameDisplay = document.getElementById(input.id === 'excelInput' ? 'excelName' : 'htmlName');
     if (input.files.length > 0) {
-        if (input.files.length === 1) {
-            nameDisplay.textContent = "✅ " + input.files[0].name;
-        } else {
-            nameDisplay.textContent = "✅ " + input.files.length + " fichiers sélectionnés";
-        }
+        nameDisplay.textContent = input.files.length === 1 ? "✅ " + input.files[0].name : "✅ " + input.files.length + " fichiers";
     } else {
         nameDisplay.textContent = "";
+    }
+}
+
+// --- IA (AVEC VOTRE CLÉ) ---
+function openAIAnalysis(index) {
+    const history = JSON.parse(localStorage.getItem('tradingHistory')) || [];
+    const reportData = history[index]; 
+    if (!reportData) return;
+    const modal = document.getElementById('aiModal');
+    const modalBody = document.getElementById('aiModalBody');
+    if (modal) {
+        modal.style.display = 'flex';
+        modalBody.innerHTML = `<div style="text-align:center; padding: 20px;"><i class="fa-solid fa-circle-notch fa-spin" style="font-size: 30px; color: #8A2BE2;"></i><p>Analyse IA en cours...</p></div>`;
+        callGeminiAPI(reportData);
+    }
+}
+function closeAIModal() { document.getElementById('aiModal').style.display = 'none'; }
+window.onclick = function(event) { if (event.target == document.getElementById('aiModal')) closeAIModal(); }
+
+async function callGeminiAPI(data) {
+    let API_KEY = "AIzaSyBgQmEkzqrilGeD9WTLkPmkf8Ru_oiz6pw"; 
+    API_KEY = API_KEY.trim();
+    const modalBody = document.getElementById('aiModalBody');
+    let modelName = "models/gemini-1.5-flash"; 
+    try {
+        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`;
+        const listResp = await fetch(listUrl);
+        const listData = await listResp.json();
+        if (listData.models) {
+            const valid = listData.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent"));
+            const best = valid.find(m => m.name.includes("flash")) || valid.find(m => m.name.includes("pro")) || valid[0];
+            if (best) modelName = best.name;
+        }
+    } catch (e) { console.warn("Défaut IA", e); }
+
+    const prompt = `Agis comme un Risk Manager. Analyse ce backtest : Actif ${data.ACTIF}, Profit ${data.NETPROFIT}, Drawdown ${data.MAXDD}, Trades ${data.TRADES}, Winrate ${data.WINRATE}, PF ${data.FACTOR}. Réponds en 4 points concis (Verdict, Force, Danger, Note/10) avec balises <b>.`;
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${API_KEY}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        const result = await response.json();
+        if (result.candidates) {
+            modalBody.innerHTML = `<div style="text-align:left; font-size:15px; line-height:1.6;">${result.candidates[0].content.parts[0].text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>')}</div>`;
+        } else throw new Error("Réponse vide");
+    } catch (error) {
+        modalBody.innerHTML = `<p style='color:red; text-align:center;'>❌ Erreur IA: ${error.message}</p>`;
+    }
+}
+
+// Fonction de secours si la première URL échoue
+async function callGeminiAPI_Details(data, container) {
+    const API_KEY = "AIzaSyBgQmEkzqrilGeD9WTLkPmkf8Ru_oiz6pw";
+    let modelName = "models/gemini-1.5-flash"; // Valeur par défaut
+
+    try {
+        // REPRISE DE VOTRE LOGIQUE ORIGINALE : Lister les modèles pour trouver le bon
+        const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`);
+        const listData = await listResp.json();
+        
+        if (listData.models) {
+            const valid = listData.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent"));
+            // On cherche flash, sinon pro, sinon le premier dispo
+            const best = valid.find(m => m.name.includes("flash")) || valid.find(m => m.name.includes("pro")) || valid[0];
+            if (best) modelName = best.name;
+        }
+    } catch (e) { 
+        console.warn("Échec de la détection du modèle, utilisation du défaut", e); 
+    }
+
+    const prompt = `Agis comme un Risk Manager. Analyse ce backtest : 
+    Actif ${data.ACTIF}, Profit ${data.NETPROFIT}, Drawdown ${data.MAXDD}, 
+    Trades ${data.TRADES}, Winrate ${data.WINRATE}, PF ${data.FACTOR}. 
+    Réponds en 4 points concis (Verdict, Force, Danger, Note/10) avec balises <b>.`;
+
+    try {
+        // L'URL utilise maintenant modelName détecté dynamiquement
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+
+        const result = await response.json();
+
+        if (result.candidates && result.candidates[0].content.parts[0].text) {
+            let output = result.candidates[0].content.parts[0].text;
+            // Conversion du format Markdown en HTML simple
+            container.innerHTML = output
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                .replace(/\n/g, '<br>');
+        } else {
+            container.innerHTML = "L'IA n'a pas renvoyé de réponse valide.";
+        }
+    } catch (error) {
+        console.error("Erreur Gemini:", error);
+        container.innerHTML = "Erreur lors de la génération de l'analyse.";
     }
 }

@@ -13,6 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
+
 <body>
 
     <div class="app-container">
@@ -34,70 +35,82 @@
             </div>
         </nav>
 
-<main class="main-content">
-    
-    <div class="hero-header">
-        <h1>Transformez vos rapports en Alpha.</h1>
-        <p>L'outil ultime pour fusionner, analyser et classifier vos algorithmes de trading MT4 & MT5 en quelques secondes.</p>
-    </div>
-
-    <div class="stepper">
-        <div class="step">
-            <div class="step-icon"><i class="fa-solid fa-file-excel"></i></div>
-            <div class="step-text">
-                <h4>1. Template</h4>
-                <p>Chargez votre tableau</p>
-            </div>
-        </div>
-        <div class="step">
-            <div class="step-icon"><i class="fa-brands fa-html5"></i></div>
-            <div class="step-text">
-                <h4>2. Rapports</h4>
-                <p>Importez vos backtests</p>
-            </div>
-        </div>
-        <div class="step">
-            <div class="step-icon"><i class="fa-solid fa-bolt"></i></div>
-            <div class="step-text">
-                <h4>3. Analyse</h4>
-                <p>Obtenez votre tableau complété</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="card" style="background: transparent; box-shadow: none; padding: 0;">
+    <main class="main-content">
         
-        <div class="upload-grid">
-            <div class="dropzone">
-                <i class="fa-solid fa-file-excel" style="color: #107c41;"></i>
-                <h3>Fichier Template</h3>
-                <p>Format .xlsx uniquement</p>
-                <input type="file" id="excelInput" accept=".xlsx" onchange="updateFileName(this)">
-                <div id="excelName" style="margin-top:10px; font-weight:bold; color:#3699ff; font-size:12px;"></div>
-            </div>
+        <div class="hero-header">
+            <h1>Transformez vos rapports en Alpha.</h1>
+            <p>L'outil ultime pour fusionner, analyser et classifier vos algorithmes de trading MT4 & MT5 en quelques secondes.</p>
+        </div>
 
-            <div class="dropzone">
-                <i class="fa-solid fa-code" style="color: #e34c26;"></i>
-                <h3>Rapports Trading</h3>
-                <p>Sélectionnez vos fichiers .html</p>
-                <input type="file" id="htmlInput" accept=".html,.htm" multiple onchange="updateFileName(this)">
-                <div id="htmlName" style="margin-top:10px; font-weight:bold; color:#3699ff; font-size:12px;"></div>
+        <div class="stepper">
+            <div class="step">
+                <div class="step-icon"><i class="fa-solid fa-file-excel"></i></div>
+                <div class="step-text">
+                    <h4>1. Template</h4>
+                    <p>Chargez votre tableau</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-icon"><i class="fa-brands fa-html5"></i></div>
+                <div class="step-text">
+                    <h4>2. Rapports</h4>
+                    <p>Importez vos backtests</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-icon"><i class="fa-solid fa-bolt"></i></div>
+                <div class="step-text">
+                    <h4>3. Analyse</h4>
+                    <p>Obtenez votre tableau complété</p>
+                </div>
             </div>
         </div>
 
-        <button onclick="processFiles()" style="height: 60px; font-size: 18px; box-shadow: 0 10px 20px rgba(54, 153, 255, 0.2);">
-            <i class="fa-solid fa-rocket" style="margin-right: 10px;"></i> Lancer l'analyse maintenant
-        </button>
-        
-        <div class="demo-link">
-            Pas de fichiers sous la main ? <a href="Report-Demo-Algo-Trading-Classifier.zip" download>Télécharger un kit de démo</a>
+        <div class="card" style="background: transparent; box-shadow: none; padding: 0;">
+            
+            <div class="upload-grid">
+                <div class="dropzone">
+                    <i class="fa-solid fa-file-excel" style="color: #107c41;"></i>
+                    <h3>Votre tableau</h3>
+                    <p>Format .xlsx uniquement</p>
+                    <input type="file" id="excelInput" accept=".xlsx" onchange="updateFileName(this)">
+                    <div id="excelName" style="margin-top:10px; font-weight:bold; color:#3699ff; font-size:12px;"></div>
+                </div>
+
+                <div class="dropzone">
+                    <i class="fa-solid fa-code" style="color: #e34c26;"></i>
+                    <h3>Vos rapports</h3>
+                    <p>Sélectionnez vos fichiers .html</p>
+                    <input type="file" id="htmlInput" accept=".html,.htm" multiple onchange="updateFileName(this)">
+                    <div id="htmlName" style="margin-top:10px; font-weight:bold; color:#3699ff; font-size:12px;"></div>
+                </div>
+            </div>
+
+            <button onclick="processFiles()" style="height: 60px; font-size: 18px; box-shadow: 0 10px 20px rgba(54, 153, 255, 0.2);">
+                <i class="fa-solid fa-rocket" style="margin-right: 10px;"></i> Lancer l'analyse
+            </button>
+            
+            <div class="demo-link">
+                Pas de fichiers sous la main ? <a href="Kit-Demo-Algo-Trading-Classifier.zip" download>Télécharger un kit de démo</a>
+            </div>
+
+            <div id="status" class="status"></div>
         </div>
 
-        <div id="status" class="status"></div>
+    </main>
+
     </div>
 
-</main>
-
+    <div id="aiModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-robot" style="color: #8A2BE2;"></i> Analyse Gemini</h2>
+                    <span class="close-btn" onclick="closeAIModal()">&times;</span>
+                </div>
+                <div id="aiModalBody" class="modal-body">
+                    <div class="loader"></div> Analyse en cours...
+                </div>
+            </div>
     </div>
 
     <script type="module">
@@ -130,7 +143,8 @@
             }
         };
     </script>
-
     <script src="script.js"></script>
+
 </body>
+
 </html>
